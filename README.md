@@ -11,7 +11,7 @@ var my_polygon = ee.FeatureCollection("path/to/imported_polygon_shapefile");
 Map.addLayer(my_polygon,{} ,'My polygons', true);
 Map.centerObject(my_polygon,  3);
 
-// Define the date range for extracting data from 01/01/2012 to 31/12/2023
+// Define the date range for extracting data from 2012/01/01 to 2022/12/31 (in YYYY/MM/DD format)
 var startDate = ee.Date('2012-01-01');
 var endDate = ee.Date('2023-01-01');
 
