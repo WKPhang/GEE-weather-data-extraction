@@ -1,6 +1,6 @@
-# Google Earth Engine Script: Weather data extraction using polygons
+# Google Earth Engine Script: Weather data extraction
 
-## Objectives
+## Objective 1
 To calculate the average precipitation for each area of interest (in the form of polygon)
 
 ```
@@ -102,4 +102,67 @@ Export.table.toDrive({
   folder: 'GEE_exports',
   fileFormat: 'CSV'
 });
+```
+
+## Objective 2 
+To calculate the daily precipitation for each points according to given dates
+```
+// Load your shapefile (ensure it is uploaded as an Asset)
+var points = ee.FeatureCollection('users/your_username/your_shapefile');
+
+// Function to parse and format the date, handling both DD/MM/YYYY and DD/M/YYYY formats
+function formatDate(feature) {
+  var dateStr = ee.String(feature.get('date'));
+  
+  // Check if the month part has a single or double digit
+  var parts = dateStr.split('/');
+  var day = parts.get(0);
+  var month = parts.get(1);
+  var year = parts.get(2);
+  
+  // Format month to ensure it is two digits
+  var formattedMonth = ee.String(month).length().eq(1)
+    ? ee.String('0').cat(month)
+    : month;
+  
+  // Combine parts into a proper date string
+  var formattedDate = ee.String(year).cat('-').cat(formattedMonth).cat('-').cat(day);
+  
+  return feature.set('formatted_date', formattedDate);
+}
+
+// Apply the formatting function to all features
+points = points.map(formatDate);
+
+// Load the CHIRPS daily precipitation data
+var chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY");
+
+// Function to extract precipitation data for each point based on the date
+function extractPrecipitation(feature) {
+  var date = ee.Date(feature.get('formatted_date'));
+  var image = chirps.filterDate(date, date.advance(1, 'day')).first();
+  
+  // Get the precipitation value at the point location
+  var precipitation = image.reduceRegion({
+    reducer: ee.Reducer.first(),
+    geometry: feature.geometry(),
+    scale: 5566  // Use the native resolution of CHIRPS
+  }).get('precipitation');
+  
+  // Return the feature with the precipitation value
+  return feature.set('precipitation', precipitation);
+}
+
+// Map the extraction function over all points
+var pointsWithPrecipitation = points.map(extractPrecipitation);
+
+// Export the results as a CSV or to your Google Drive
+Export.table.toDrive({
+  collection: pointsWithPrecipitation,
+  description: 'Precipitation_Extraction',
+  fileFormat: 'CSV'
+});
+
+// Optional: Print results to console for quick inspection
+print(pointsWithPrecipitation);
 ```
